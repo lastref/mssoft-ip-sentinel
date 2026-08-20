@@ -11,4 +11,7 @@ MSSOFT_IP_Sentinel_*/
 *.json
 !run.json
 !detayli_rapor.json
+!web/package.json
+!web/package-lock.json
 dist/
+web/node_modules/

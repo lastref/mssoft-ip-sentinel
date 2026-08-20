@@ -19,7 +19,7 @@ GitHub Pages statik bir hizmettir. AbuseIPDB API v2 CORS başlığı vermediği 
 
 ## GitHub Pages
 
-`.github/workflows/deploy-pages.yml`, `main` dalındaki `web/` değişikliklerini yayımlar. Depo **Settings → Pages → Source** bölümünde **GitHub Actions** olarak yapılandırılmalıdır.
+`.github/workflows/deploy-pages.yml`, `main` dalındaki `web/` değişikliklerinde React portalını temiz bir üretim derlemesiyle oluşturur ve yalnız `web/dist` içeriğini yayımlar. Depo **Settings → Pages → Source** bölümünde **GitHub Actions** olarak yapılandırılmalıdır.
 
 Yayın adresi: `https://lastref.github.io/mssoft-ip-sentinel/`
 
@@ -45,6 +45,10 @@ Bu katman zorunludur: Worker’daki CORS kontrolü bir tarayıcı kuralıdır, e
 ## Portalı bağlama
 
 Portal, yayımlanmış MSSOFT Worker adresiyle hazır gelir. Gerekirse **Ayarları aç** düğmesinden kurumunuzun farklı HTTPS Worker adresini tanımlayabilirsiniz. Özel adres yalnız aktif tarayıcı oturumunda tutulur; portal API anahtarı istemez veya saklamaz.
+
+## Portal arayüzü
+
+Portal React ile derlenir. Tasarım, beyaz alanı yüksek ve düşük hareketli kurumsal bir çalışma alanı olarak kurgulanmıştır. React Bits `AnimatedContent` bileşeni yalnız bölüm giriş geçişlerinde kullanılır; işletim sistemi azaltılmış hareket tercihi algılandığında animasyon çalışmaz. Bileşen lisans notu `web/src/components/REACT_BITS_LICENSE.md` dosyasında yer alır.
 
 ## Operasyon notları
 

@@ -1,6 +1,6 @@
-# MSSOFT IP Sentinel — Ekipler İçin IP Threat Intelligence
+# MSSOFT IP Sentinel — Ekipler İçin IP Risk Değerlendirme
 
-MSSOFT IP Sentinel; FortiAnalyzer trafik kayıtları ve IPv4 listeleri için tasarlanmış, AbuseIPDB itibar verisini RIPEstat BGP prefix bilgisiyle birleştiren cross-platform bir threat intelligence ürünüdür. Tekrarlanan adresleri tekilleştirir, yüksek riskli adresleri denetlenebilir raporlarla sunar ve güvenlik ekiplerinin hızlı ön değerlendirme yapmasını sağlar.
+MSSOFT IP Sentinel; FortiAnalyzer trafik kayıtları ve IPv4 listeleri için tasarlanmış, AbuseIPDB itibar verisini RIPEstat BGP prefix bilgisiyle birleştiren cross-platform bir IP risk değerlendirme ürünüdür. Tekrarlanan adresleri tekilleştirir, yüksek riskli adresleri denetlenebilir raporlarla sunar ve güvenlik ekiplerinin hızlı ön değerlendirme yapmasını sağlar.
 
 Masaüstü uygulamasına ek olarak ekipler için bir web portalı da içerir. Portal ham log dosyasını tarayıcıda işler; sadece tekilleştirilmiş genel IP’ler güvenli ekip geçidine gönderilir.
 
@@ -32,7 +32,17 @@ Portal, GitHub Pages üzerinde müşteri ve ekip arayüzü olarak yayımlanır:
 
 AbuseIPDB API v2, tarayıcıdan doğrudan çağrı için CORS desteği vermez ve API anahtarlarının istemci tarafında kullanılmamasını ister. Bu nedenle web portalı API anahtarı içermez. Tarama, Cloudflare Worker üzerinde çalışan güvenli API geçidi üzerinden yürür; anahtarlar yalnız Worker secret alanında tutulur.
 
-Yayımlanmış portal, MSSOFT ekip geçidiyle hazır yapılandırılmıştır. Geçit çoklu anahtar havuzunu kullanır, anahtar başına günlük 1.000 API isteği sınırını kalıcı olarak izler ve sınır ya da yetkilendirme hatasında sıradaki anahtara geçer.
+Yayımlanmış portal, sade ve erişilebilir bir React çalışma alanıdır. React Bits `AnimatedContent` bileşeni, yalnız düşük hareketli bölüm geçişlerinde kullanılır; `prefers-reduced-motion` tercihi etkinse geçişler kapatılır. Geçit çoklu anahtar havuzunu kullanır, anahtar başına günlük 1.000 API isteği sınırını kalıcı olarak izler ve sınır ya da yetkilendirme hatasında sıradaki anahtara geçer.
+
+Web geliştirme ve yerel önizleme:
+
+```bash
+cd web
+npm ci
+npm run dev
+```
+
+Üretim derlemesi için `npm run build` çalıştırın. GitHub Pages iş akışı bu derlemeyi otomatik üretir ve yalnız `web/dist` içeriğini yayımlar.
 
 Kurulum, ekip erişim politikası ve Cloudflare Access adımları için [WEB_DEPLOYMENT.md](WEB_DEPLOYMENT.md) belgesine bakın.
 
