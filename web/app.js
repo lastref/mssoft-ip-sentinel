@@ -4,6 +4,7 @@ const ipPattern = /(?<![\d.])(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\
 const ui = Object.fromEntries(["fileInput","fileName","ipCount","duplicateCount","scoreInput","daysInput","scanButton","cancelButton","statusDot","statusTitle","statusMessage","progressLabel","progressBar","results","scannedCount","findingCount","cancelledCount","resultsBody","downloadSummary","downloadDetails","settingsDialog","showSettings","closeSettings","saveSettings","gatewayInput","gatewayStatus","serviceNotice"].map((id) => [id, document.getElementById(id)]));
 let ips = [], findings = [], controller = null, cancelled = false;
 const gatewayKey = "mssoft-ip-sentinel-gateway";
+const defaultGateway = "https://mssoft-ip-sentinel-gateway.mustafa-satiroglu.workers.dev";
 
 function isRoutable(ip) {
   const [a, b] = ip.split(".").map(Number);
@@ -16,7 +17,7 @@ function isRoutable(ip) {
   if (a === 203 && b === 0) return false;
   return true;
 }
-function gateway() { return sessionStorage.getItem(gatewayKey) || ""; }
+function gateway() { return sessionStorage.getItem(gatewayKey) || defaultGateway; }
 function setStatus(title, message, tone = "neutral") { ui.statusTitle.textContent = title; ui.statusMessage.textContent = message; ui.statusDot.className = `status-dot ${tone === "neutral" ? "" : tone}`; }
 function setProgress(done, total) { const value = total ? Math.min(100, Math.round(done / total * 100)) : 0; ui.progressBar.style.width = `${value}%`; ui.progressLabel.textContent = `${done} / ${total}`; }
 function updateStartState() { ui.scanButton.disabled = !ips.length || !gateway() || Boolean(controller); ui.serviceNotice.hidden = Boolean(gateway()); }

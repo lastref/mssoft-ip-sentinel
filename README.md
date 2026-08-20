@@ -32,6 +32,8 @@ Portal, GitHub Pages üzerinde müşteri ve ekip arayüzü olarak yayımlanır:
 
 AbuseIPDB API v2, tarayıcıdan doğrudan çağrı için CORS desteği vermez ve API anahtarlarının istemci tarafında kullanılmamasını ister. Bu nedenle web portalı API anahtarı içermez. Tarama, Cloudflare Worker üzerinde çalışan güvenli API geçidi üzerinden yürür; anahtarlar yalnız Worker secret alanında tutulur.
 
+Yayımlanmış portal, MSSOFT ekip geçidiyle hazır yapılandırılmıştır. Geçit çoklu anahtar havuzunu kullanır, anahtar başına günlük 1.000 API isteği sınırını kalıcı olarak izler ve sınır ya da yetkilendirme hatasında sıradaki anahtara geçer.
+
 Kurulum, ekip erişim politikası ve Cloudflare Access adımları için [WEB_DEPLOYMENT.md](WEB_DEPLOYMENT.md) belgesine bakın.
 
 ## Kurulum ve çalıştırma

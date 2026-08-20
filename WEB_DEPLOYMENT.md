@@ -44,7 +44,7 @@ Bu katman zorunludur: Worker’daki CORS kontrolü bir tarayıcı kuralıdır, e
 
 ## Portalı bağlama
 
-Portalda **Ayarları aç** düğmesinden Worker’ın HTTPS adresini girin. Adres yalnız aktif tarayıcı oturumunda tutulur; portal API anahtarı istemez veya saklamaz.
+Portal, yayımlanmış MSSOFT Worker adresiyle hazır gelir. Gerekirse **Ayarları aç** düğmesinden kurumunuzun farklı HTTPS Worker adresini tanımlayabilirsiniz. Özel adres yalnız aktif tarayıcı oturumunda tutulur; portal API anahtarı istemez veya saklamaz.
 
 ## Operasyon notları
 
