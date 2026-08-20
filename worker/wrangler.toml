@@ -1,0 +1,17 @@
+name = "mssoft-ip-sentinel-gateway"
+main = "src/index.js"
+compatibility_date = "2026-08-20"
+
+# Yalnız yayımlanmış portalın tarayıcı isteklerine CORS yanıtı üretir.
+# Bu ayar erişim denetimi değildir; dağıtımdan sonra Cloudflare Access politikası
+# ile yalnız ekip üyelerini koruyun.
+[vars]
+ALLOWED_ORIGIN = "https://lastref.github.io"
+
+[[durable_objects.bindings]]
+name = "API_KEY_POOL"
+class_name = "ApiKeyPool"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ApiKeyPool"]

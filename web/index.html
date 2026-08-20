@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="MSSOFT IP Sentinel — ekipler için güvenli IP itibarı değerlendirme portalı." />
+    <title>MSSOFT IP Sentinel | Threat Intelligence Portal</title>
+    <link rel="icon" href="../assets/mssoft_ip_sentinel_logo_minimal.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="MSSOFT IP Sentinel ana sayfa">
+        <img src="../assets/mssoft_ip_sentinel_logo_minimal.png" alt="MSSOFT IP Sentinel" />
+        <span><strong>MSSOFT</strong><small>IP Sentinel</small></span>
+      </a>
+      <span class="environment">Ekip çalışma alanı</span>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <p class="eyebrow">THREAT INTELLIGENCE PORTAL</p>
+        <h1>IP itibarını hızlı, izlenebilir ve güvenli değerlendirin.</h1>
+        <p>FortiAnalyzer loglarını veya IPv4 listelerini seçin. Tekrarlanan adresler tarayıcınızda ayıklanır; yalnızca genel IP’ler ekip geçidine gönderilir.</p>
+      </section>
+
+      <section class="notice" id="serviceNotice">
+        <strong>Geçit yapılandırması gerekli.</strong>
+        <span>Tarama için kurumunuzun güvenli MSSOFT API Gateway adresini Ayarlar alanına girin.</span>
+        <button class="text-button" id="showSettings" type="button">Ayarları aç</button>
+      </section>
+
+      <section class="workspace" aria-label="Tarama çalışma alanı">
+        <div class="panel input-panel">
+          <div class="panel-heading"><div><p class="eyebrow">1. GİRDİ</p><h2>Log veya IP listesi</h2></div><span class="tag">Tarayıcıda işlenir</span></div>
+          <label class="drop-zone" for="fileInput">
+            <input id="fileInput" type="file" accept=".log,.txt,text/plain" />
+            <span class="drop-icon">+</span>
+            <strong>Bir .log veya .txt dosyası seçin</strong>
+            <small>Maksimum 100 MB · Dosya cihazınızdan dışarı yüklenmez</small>
+          </label>
+          <p class="file-name" id="fileName">Henüz dosya seçilmedi.</p>
+          <div class="metric-grid" aria-live="polite">
+            <div><span>Bulunan genel IPv4</span><strong id="ipCount">0</strong></div>
+            <div><span>Tekrarlanan kayıt</span><strong id="duplicateCount">0</strong></div>
+          </div>
+        </div>
+
+        <div class="panel options-panel">
+          <div class="panel-heading"><div><p class="eyebrow">2. POLİTİKA</p><h2>Tarama ayarları</h2></div></div>
+          <div class="field-grid">
+            <label>Minimum risk skoru<input id="scoreInput" type="number" min="0" max="100" value="25" /></label>
+            <label>Rapor yaşı (gün)<input id="daysInput" type="number" min="1" max="365" value="90" /></label>
+          </div>
+          <p class="hint">Eşik üstündeki kayıtlar ayrıntılı rapora eklenir. Özet, yalnızca <code>IP/prefix</code> satırlarından oluşur.</p>
+          <div class="actions">
+            <button class="primary" id="scanButton" type="button" disabled>Taramayı başlat</button>
+            <button class="secondary" id="cancelButton" type="button" disabled>İptal et</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel status-panel" aria-live="polite">
+        <div class="status-line"><span class="status-dot" id="statusDot"></span><div><strong id="statusTitle">Hazır</strong><p id="statusMessage">Başlamak için dosya seçin ve güvenli geçit adresini yapılandırın.</p></div><span id="progressLabel">0 / 0</span></div>
+        <div class="progress-track"><span id="progressBar"></span></div>
+      </section>
+
+      <section class="results" id="results" hidden>
+        <div class="results-heading"><div><p class="eyebrow">3. SONUÇ</p><h2>Riskli IP kayıtları</h2></div><div class="download-actions"><button id="downloadSummary" type="button">IP/prefix özetini indir</button><button id="downloadDetails" type="button">Detay JSON’u indir</button></div></div>
+        <div class="result-metrics"><div><span>Taranan IP</span><strong id="scannedCount">0</strong></div><div><span>Eşik üstü bulgu</span><strong id="findingCount">0</strong></div><div><span>İptal edilen</span><strong id="cancelledCount">Hayır</strong></div></div>
+        <div class="table-wrap"><table><thead><tr><th>IP / Prefix</th><th>Skor</th><th>Rapor</th><th>ASN</th><th>Ülke</th><th>Kaynak</th></tr></thead><tbody id="resultsBody"></tbody></table></div>
+      </section>
+
+      <section class="panel security-note">
+        <h2>Veri ve erişim yaklaşımı</h2>
+        <p>Bu portal API anahtarı tutmaz. Kurum geçidi, AbuseIPDB anahtarlarını secret olarak saklar ve ekip erişimini Cloudflare Access ile sınırlar. Ham log dosyası cihazınızda kalır; geçide yalnızca tekilleştirilmiş genel IP’ler gönderilir.</p>
+      </section>
+    </main>
+
+    <dialog id="settingsDialog">
+      <form method="dialog" class="settings-form">
+        <div><p class="eyebrow">EKİP AYARLARI</p><h2>Güvenli geçit</h2><p>Yalnızca kurum yöneticinizin sağladığı HTTPS Worker adresini kullanın. Adres tarayıcı oturumu boyunca saklanır.</p></div>
+        <label>API Gateway URL<input id="gatewayInput" type="url" inputmode="url" placeholder="https://mssoft-ip-sentinel-gateway.…workers.dev" autocomplete="off" /></label>
+        <p class="gateway-status" id="gatewayStatus"></p>
+        <menu><button value="cancel" class="secondary" type="button" id="closeSettings">Vazgeç</button><button value="default" class="primary" type="button" id="saveSettings">Kaydet</button></menu>
+      </form>
+    </dialog>
+    <script src="app.js"></script>
+  </body>
+</html>

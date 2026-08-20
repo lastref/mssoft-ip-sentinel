@@ -3,6 +3,8 @@ __pycache__/
 .venv/
 .idea/
 .vscode/
+worker/.wrangler/
+worker/.dev.vars
 MSSOFT_IP_Sentinel_*/
 *.log
 *.csv

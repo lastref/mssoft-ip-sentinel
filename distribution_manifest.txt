@@ -1,6 +1,7 @@
 # MSSOFT IP Sentinel source distribution manifest
 .gitignore
 README.md
+WEB_DEPLOYMENT.md
 QUALITY_AUDIT_REPORT.md
 app.py
 scanner.py
@@ -11,3 +12,10 @@ run_macos.command
 assets/mssoft_ip_sentinel_logo_minimal.png
 distribution_manifest.txt
 build_distribution.py
+web/index.html
+web/styles.css
+web/app.js
+web/.nojekyll
+worker/src/index.js
+worker/wrangler.toml
+.github/workflows/deploy-pages.yml

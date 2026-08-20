@@ -1,6 +1,8 @@
-# MSSOFT IP Sentinel
+# MSSOFT IP Sentinel — Ekipler İçin IP Threat Intelligence
 
-MSSOFT IP Sentinel; FortiAnalyzer trafik kayıtları ve IPv4 listeleri için tasarlanmış, AbuseIPDB itibar verisini RIPEstat BGP prefix bilgisiyle birleştiren cross-platform masaüstü uygulamasıdır. Tekrarlanan adresleri tekilleştirir, yüksek riskli adresleri zaman damgalı bir rapor klasöründe saklar.
+MSSOFT IP Sentinel; FortiAnalyzer trafik kayıtları ve IPv4 listeleri için tasarlanmış, AbuseIPDB itibar verisini RIPEstat BGP prefix bilgisiyle birleştiren cross-platform bir threat intelligence ürünüdür. Tekrarlanan adresleri tekilleştirir, yüksek riskli adresleri denetlenebilir raporlarla sunar ve güvenlik ekiplerinin hızlı ön değerlendirme yapmasını sağlar.
+
+Masaüstü uygulamasına ek olarak ekipler için bir web portalı da içerir. Portal ham log dosyasını tarayıcıda işler; sadece tekilleştirilmiş genel IP’ler güvenli ekip geçidine gönderilir.
 
 ## Özellikler
 
@@ -22,6 +24,16 @@ Her çalışma seçilen çıktı üst klasöründe `MSSOFT_IP_Sentinel_YYYY-MM-D
 - `run.json`: Tarama özeti, API deneme sayaçları ve iptal durumu.
 - `audit.log`: Hata ve işlem denetim günlüğü.
 
+## Web portalı
+
+Portal, GitHub Pages üzerinde müşteri ve ekip arayüzü olarak yayımlanır:
+
+`https://lastref.github.io/mssoft-ip-sentinel/`
+
+AbuseIPDB API v2, tarayıcıdan doğrudan çağrı için CORS desteği vermez ve API anahtarlarının istemci tarafında kullanılmamasını ister. Bu nedenle web portalı API anahtarı içermez. Tarama, Cloudflare Worker üzerinde çalışan güvenli API geçidi üzerinden yürür; anahtarlar yalnız Worker secret alanında tutulur.
+
+Kurulum, ekip erişim politikası ve Cloudflare Access adımları için [WEB_DEPLOYMENT.md](WEB_DEPLOYMENT.md) belgesine bakın.
+
 ## Kurulum ve çalıştırma
 
 Python 3.10 veya üzeri gerekir. Bağımlılıklar sabit sürümlere kilitlenmiştir.
@@ -42,6 +54,8 @@ API anahtarının kendisi proje, rapor ve günlük dosyalarına yazılmaz. Anaht
 Kota sayacı `~/.mssoft-ip-sentinel/api_usage.json` altında yalnızca anahtarın SHA-256 parmak izi ve güncel UTC günlük kullanım adedini tutar; anahtar metni içermez. Raporlardaki IP, ISP, ülke ve itibar verileri güvenlik verisi sayılabilir. Çıktı klasörünü, erişim yetkilerini ve kurumunuzun saklama politikasını buna göre yönetin.
 
 AbuseIPDB ve RIPEstat sorguları ilgili servislerin uç noktalarına gönderilir. Bu ürün, bu servislerin erişilebilirliğine ve döndürdüğü verinin doğruluğuna bağımlıdır.
+
+Web portalı üzerinden çalışırken ham log dosyası cihazda kalır. Geçide yalnız tekilleştirilmiş genel IP’ler, seçilen eşik ve rapor yaşı gönderilir. Worker’ı Cloudflare Access ile yalnız ekip üyelerine sınırlandırın; CORS tek başına erişim denetimi değildir.
 
 ## Risk politikası
 
