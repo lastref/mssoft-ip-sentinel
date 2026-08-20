@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.idea/
+.vscode/
+MSSOFT_IP_Sentinel_*/
+*.log
+*.csv
+*.json
+!run.json
+!detayli_rapor.json
+dist/

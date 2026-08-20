@@ -1,0 +1,13 @@
+# MSSOFT IP Sentinel source distribution manifest
+.gitignore
+README.md
+QUALITY_AUDIT_REPORT.md
+app.py
+scanner.py
+settings.py
+requirements.txt
+run_windows.bat
+run_macos.command
+assets/mssoft_ip_sentinel_logo_minimal.png
+distribution_manifest.txt
+build_distribution.py
