@@ -1,7 +1,11 @@
 const API_URL = "https://api.abuseipdb.com/api/v2/check";
 const RIPE_URL = "https://stat.ripe.net/data/network-info/data.json";
 const DAILY_LIMIT = 1000;
-const MAX_BATCH = 50;
+// Free Worker planlarında bir çağrının alt istek sayısı sınırlıdır. Her IP için
+// AbuseIPDB, anahtar havuzu ve gerektiğinde RIPEstat çağrıları yapıldığından,
+// 8'lik grup güvenli bir üst sınır bırakır.
+const MAX_BATCH = 8;
+const MAX_KEY_ATTEMPTS = 2;
 const IP_PATTERN = /^(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 
 function cors(request, env) {
@@ -34,7 +38,10 @@ async function exhaustKey(env, index) { const id = env.API_KEY_POOL.idFromName("
 async function prefixFor(ip) { try { const response = await fetch(`${RIPE_URL}?resource=${encodeURIComponent(ip)}`); const body = await response.json(); const prefix = body?.data?.prefix; if (typeof prefix === "string" && prefix.includes("/")) return { prefix, source:"ripestat_bgp" }; } catch {} return { prefix:`${ip}/32`, source:"host_32_fallback" }; }
 async function lookup(ip, maxAgeInDays, env) {
   const keys = keyList(env); let lastError = "AbuseIPDB sorgusu tamamlanamadı.";
-  for (let attempt = 0; attempt < keys.length; attempt += 1) {
+  // Bir IP için en fazla iki anahtar denenir. En kötü durumda 8 IP ×
+  // (anahtar havuzu + AbuseIPDB + devre dışı bırakma + ikinci deneme +
+  // RIPEstat) 50 alt isteğin altında kalır.
+  for (let attempt = 0; attempt < Math.min(keys.length, MAX_KEY_ATTEMPTS); attempt += 1) {
     const index = await reserveKey(env); const url = new URL(API_URL); url.searchParams.set("ipAddress", ip); url.searchParams.set("maxAgeInDays", String(maxAgeInDays)); url.searchParams.set("verbose", "");
     try { const response = await fetch(url, { headers:{"Accept":"application/json", "Key":keys[index]} }); if ([401,403,429].includes(response.status)) { await exhaustKey(env, index); lastError = `Anahtar ${response.status} ile devre dışı kaldı.`; continue; } if (!response.ok) throw new Error(`AbuseIPDB HTTP ${response.status}`); const data = (await response.json()).data; if (data?.ipAddress !== ip) throw new Error("AbuseIPDB yanıt IP’si istekle uyuşmuyor."); return data; } catch (error) { lastError = error.message; }
   } throw new Error(lastError);

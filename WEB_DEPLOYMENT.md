@@ -52,7 +52,7 @@ Portal React ile derlenir. Tasarım, beyaz alanı yüksek ve düşük hareketli 
 
 ## Operasyon notları
 
-- Worker en fazla 50 IP’lik grupları işler; portal büyük listeleri otomatik gruplar.
+- Worker en fazla 8 IP’lik grupları işler; portal büyük listeleri otomatik gruplar. Bu sınır, Cloudflare Worker alt istek kotasını aşmadan AbuseIPDB, anahtar havuzu ve gerektiğinde RIPEstat çağrılarını tamamlamak içindir.
 - Ham log dosyası cihazda kalır; yalnız tekilleştirilmiş genel IP’ler geçide gider.
 - RIPEstat prefixi bulunamazsa yüksek riskli IP `IP/32` olarak raporlanır.
 - GitHub Pages arayüzünü değil API geçidini korur. Arayüzün de internete açık olmaması gerekiyorsa portalı kurum içi web barındırmasına taşıyın.

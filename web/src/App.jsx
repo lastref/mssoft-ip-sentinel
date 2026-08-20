@@ -3,7 +3,8 @@ import AnimatedContent from "./components/AnimatedContent";
 import brandMark from "../assets/mssoft_ip_sentinel_logo_minimal.png";
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
-const BATCH_SIZE = 50;
+// Worker alt istek sınırının altında kalmak için Worker ile aynı grup boyutu.
+const BATCH_SIZE = 8;
 const GATEWAY_KEY = "mssoft-ip-sentinel-gateway";
 const DEFAULT_GATEWAY = "https://mssoft-ip-sentinel-gateway.mustafa-satiroglu.workers.dev";
 const IP_PATTERN = /(?<![\d.])(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}(?![\d.])/g;
