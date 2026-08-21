@@ -12,7 +12,7 @@ function cors(request, env) {
   const origin = request.headers.get("Origin");
   const allowed = env.ALLOWED_ORIGIN;
   if (!origin || origin !== allowed) return null;
-  return { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods":"POST, OPTIONS", "Access-Control-Allow-Headers":"Content-Type", "Vary":"Origin" };
+  return { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods":"GET, POST, OPTIONS", "Access-Control-Allow-Headers":"Content-Type", "Vary":"Origin" };
 }
 function response(request, env, payload, status = 200) {
   const headers = cors(request, env);
@@ -26,8 +26,9 @@ export class ApiKeyPool {
   constructor(state, env) { this.state = state; this.env = env; }
   async fetch(request) {
     const keys = keyList(this.env); const today = new Date().toISOString().slice(0, 10); const data = await this.state.storage.get("usage") || { day:today, counts:{}, exhausted:{} };
-    if (data.day !== today) { data.day = today; data.counts = {}; data.exhausted = {}; }
+    if (data.day !== today) { data.day = today; data.counts = {}; data.exhausted = {}; await this.state.storage.put("usage", data); }
     const url = new URL(request.url);
+    if (url.pathname === "/usage") return Response.json({ day: data.day, keys: keys.map((_, index) => { const used = data.counts[index] || 0; return { label:`API ${index + 1}`, used, limit:DAILY_LIMIT, remaining:Math.max(0, DAILY_LIMIT - used), exhausted:Boolean(data.exhausted[index]) }; }) });
     if (url.pathname === "/exhaust") { const index = Number(url.searchParams.get("index")); if (Number.isInteger(index)) data.exhausted[index] = true; await this.state.storage.put("usage", data); return Response.json({ ok:true }); }
     for (let index = 0; index < keys.length; index += 1) { if (data.exhausted[index]) continue; const count = data.counts[index] || 0; if (count >= DAILY_LIMIT) continue; data.counts[index] = count + 1; await this.state.storage.put("usage", data); return Response.json({ index }); }
     return Response.json({ error:"Tüm ekip API anahtarı günlük kota sınırında." }, { status:429 });
@@ -35,6 +36,7 @@ export class ApiKeyPool {
 }
 async function reserveKey(env) { const id = env.API_KEY_POOL.idFromName("team"); const result = await env.API_KEY_POOL.get(id).fetch("https://pool/reserve"); if (!result.ok) throw new Error((await result.json()).error); return (await result.json()).index; }
 async function exhaustKey(env, index) { const id = env.API_KEY_POOL.idFromName("team"); await env.API_KEY_POOL.get(id).fetch(`https://pool/exhaust?index=${index}`); }
+async function usageFor(env) { const id = env.API_KEY_POOL.idFromName("team"); const result = await env.API_KEY_POOL.get(id).fetch("https://pool/usage"); if (!result.ok) throw new Error((await result.json()).error || "Kullanım bilgisi alınamadı."); return result.json(); }
 async function prefixFor(ip) { try { const response = await fetch(`${RIPE_URL}?resource=${encodeURIComponent(ip)}`); const body = await response.json(); const prefix = body?.data?.prefix; if (typeof prefix === "string" && prefix.includes("/")) return { prefix, source:"ripestat_bgp" }; } catch {} return { prefix:`${ip}/32`, source:"host_32_fallback" }; }
 async function lookup(ip, maxAgeInDays, env) {
   const keys = keyList(env); let lastError = "AbuseIPDB sorgusu tamamlanamadı.";
@@ -48,7 +50,9 @@ async function lookup(ip, maxAgeInDays, env) {
 }
 export default { async fetch(request, env) {
   const headers = cors(request, env); if (request.method === "OPTIONS") return headers ? new Response(null, { status:204, headers }) : new Response(null, { status:403 });
-  if (request.method !== "POST" || new URL(request.url).pathname !== "/api/scan") return response(request, env, { error:"Not found." }, 404);
+  const path = new URL(request.url).pathname;
+  if (request.method === "GET" && path === "/api/usage") { try { return response(request, env, await usageFor(env)); } catch (error) { return response(request, env, { error:error.message || "Kullanım bilgisi alınamadı." }, 502); } }
+  if (request.method !== "POST" || path !== "/api/scan") return response(request, env, { error:"Not found." }, 404);
   try { const body = await request.json(); const source = Array.isArray(body.ips) ? body.ips : []; const ips = [...new Set(source)].filter(isRoutable); const score = Number(body.score), maxAgeInDays = Number(body.maxAgeInDays); if (source.length > MAX_BATCH || !Number.isInteger(score) || score < 0 || score > 100 || !Number.isInteger(maxAgeInDays) || maxAgeInDays < 1 || maxAgeInDays > 365) return response(request, env, { error:"Geçersiz tarama isteği." }, 400); const findings = [];
     for (const ip of ips) { const data = await lookup(ip, maxAgeInDays, env); if ((data.abuseConfidenceScore || 0) >= score) { const subnet = await prefixFor(ip); findings.push({ ip, ip_with_prefix:subnet.prefix, prefix_source:subnet.source, abuse_confidence_score:data.abuseConfidenceScore || 0, total_reports:data.totalReports || 0, distinct_reporters:data.numDistinctUsers || 0, last_reported_at:data.lastReportedAt || null, country:data.countryCode || null, isp:data.isp || null, domain:data.domain || null, usage_type:data.usageType || null, is_whitelisted:data.isWhitelisted ?? null, origin_asns:[] }); } }
     return response(request, env, { scanned:ips.length, findings });

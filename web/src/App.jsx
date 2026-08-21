@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AnimatedContent from "./components/AnimatedContent";
 import brandMark from "../assets/mssoft_ip_sentinel_logo_minimal.png";
 
@@ -59,6 +59,7 @@ function Icon({ name, size = 18 }) {
     play: <path d="m8 5 11 7-11 7Z" />,
     stop: <path d="M7 7h10v10H7z" />,
     download: <><path d="M12 3v12M7.5 10.5 12 15l4.5-4.5M5 20.5h14" /></>,
+    refresh: <><path d="M20 11a8 8 0 1 0 2 5.2" /><path d="M20 4v7h-7" /></>,
     chevron: <path d="m9 18 6-6-6-6" />,
   };
   return <svg className="icon" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
@@ -70,6 +71,7 @@ function App() {
   const [ips, setIps] = useState([]);
   const [fileName, setFileName] = useState("");
   const [duplicateCount, setDuplicateCount] = useState(0);
+  const [pastedList, setPastedList] = useState("");
   const [score, setScore] = useState(25);
   const [days, setDays] = useState(90);
   const [findings, setFindings] = useState([]);
@@ -82,9 +84,40 @@ function App() {
   const [gatewayError, setGatewayError] = useState("");
   const [status, setStatus] = useState({ tone: "ready", title: "Hazır", message: "Bir .log veya .txt dosyası seçerek başlayın." });
   const [dragActive, setDragActive] = useState(false);
+  const [apiUsage, setApiUsage] = useState(null);
+  const [usageState, setUsageState] = useState("loading");
 
   const progress = useMemo(() => ips.length ? Math.min(100, Math.round((scanned / ips.length) * 100)) : 0, [ips.length, scanned]);
   const canStart = Boolean(ips.length && gateway && !running);
+
+  const applyExtractedIps = useCallback((extracted, sourceName, successMessage) => {
+    setIps(extracted.unique);
+    setDuplicateCount(extracted.duplicateCount);
+    setFileName(sourceName);
+    setFindings([]);
+    setScanned(0);
+    setCancelled(false);
+    setStatus(extracted.unique.length
+      ? { tone: "ready", title: "Girdi hazır", message: successMessage(extracted.unique.length) }
+      : { tone: "error", title: "Genel IPv4 bulunamadı", message: "Girdide taranabilecek genel IPv4 adresi yok." });
+  }, []);
+
+  const loadUsage = useCallback(async () => {
+    if (!gateway) return;
+    setUsageState("loading");
+    try {
+      const response = await fetch(`${gateway}/api/usage`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Kullanım bilgisi alınamadı.");
+      setApiUsage(payload);
+      setUsageState("ready");
+    } catch {
+      setApiUsage(null);
+      setUsageState("error");
+    }
+  }, [gateway]);
+
+  useEffect(() => { loadUsage(); }, [loadUsage]);
 
   async function loadFile(file) {
     if (!file) return;
@@ -95,15 +128,7 @@ function App() {
     try {
       const text = await file.text();
       const extracted = extractIps(text);
-      setIps(extracted.unique);
-      setDuplicateCount(extracted.duplicateCount);
-      setFileName(file.name);
-      setFindings([]);
-      setScanned(0);
-      setCancelled(false);
-      setStatus(extracted.unique.length
-        ? { tone: "ready", title: "Girdi hazır", message: `${formatNumber(extracted.unique.length)} benzersiz genel IPv4 bulundu. Ham dosya tarayıcınızda kalır.` }
-        : { tone: "error", title: "Genel IPv4 bulunamadı", message: "Dosyada taranabilecek genel IPv4 adresi yok." });
+      applyExtractedIps(extracted, file.name, (count) => `${formatNumber(count)} benzersiz genel IPv4 bulundu. Ham dosya tarayıcınızda kalır.`);
     } catch {
       setStatus({ tone: "error", title: "Dosya okunamadı", message: "Dosyayı okumak için tarayıcı izni veya geçerli bir metin dosyası gerekir." });
     }
@@ -112,6 +137,11 @@ function App() {
   async function handleSelection(event) {
     await loadFile(event.target.files?.[0]);
     event.target.value = "";
+  }
+
+  function preparePastedList() {
+    const extracted = extractIps(pastedList);
+    applyExtractedIps(extracted, "Yapıştırılan IP listesi", (count) => `${formatNumber(count)} benzersiz genel IPv4 hazırlandı. Liste tarayıcınızda işlendi.`);
   }
 
   function saveGateway() {
@@ -180,6 +210,7 @@ function App() {
     } finally {
       setRunning(false);
       controllerRef.current = null;
+      void loadUsage();
     }
   }
 
@@ -224,6 +255,11 @@ function App() {
                 <strong>{fileName || "Bir .log veya .txt dosyası seçin"}</strong>
                 <span>{fileName ? "Başka bir dosya seçmek için tıklayın" : "Maksimum 100 MB · Dosya cihazınızdan yüklenmez"}</span>
               </label>
+              <div className="paste-section">
+                <label htmlFor="ipList">veya IP listesini yapıştırın</label>
+                <textarea id="ipList" value={pastedList} onChange={(event) => setPastedList(event.target.value)} placeholder={"8.8.8.8\n1.1.1.1\n203.0.113.10"} spellCheck="false" />
+                <button className="button button-secondary compact" type="button" onClick={preparePastedList} disabled={!pastedList.trim()}>Listeyi hazırla</button>
+              </div>
               <div className="stat-grid" aria-live="polite">
                 <div><span>Genel IPv4</span><strong>{formatNumber(ips.length)}</strong></div>
                 <div><span>Yinelenen kayıt</span><strong>{formatNumber(duplicateCount)}</strong></div>
@@ -253,6 +289,15 @@ function App() {
               <span className="progress-value">{formatNumber(scanned)} / {formatNumber(ips.length)}</span>
             </div>
             <div className="progress-track" aria-label={`İlerleme: yüzde ${progress}`}><span style={{ width: `${progress}%` }} /></div>
+          </section>
+        </AnimatedContent>
+
+        <AnimatedContent distance={16} duration={0.4} delay={0.1}>
+          <section className="usage-card" aria-live="polite" aria-labelledby="usage-title">
+            <div className="usage-heading"><div><p className="section-label">API KULLANIMI</p><h2 id="usage-title">Günlük anahtar durumu</h2></div><button className="button button-secondary compact" type="button" onClick={loadUsage} disabled={usageState === "loading"}><Icon name="refresh" />Yenile</button></div>
+            {usageState === "loading" && <p className="usage-message">Kullanım bilgisi alınıyor.</p>}
+            {usageState === "error" && <p className="usage-message">Kullanım bilgisi şu anda alınamadı. Geçit erişimini kontrol edip yeniden deneyin.</p>}
+            {usageState === "ready" && <><p className="usage-message">UTC günü için kullanılan AbuseIPDB sorgu sayısı. Anahtar değeri gösterilmez.</p><div className="usage-grid">{apiUsage.keys.map((key) => <div className="usage-item" key={key.label}><div><strong>{key.label}</strong><span>{formatNumber(key.used)} / {formatNumber(key.limit)}</span></div><div className="usage-track"><span style={{ width: `${Math.min(100, (key.used / key.limit) * 100)}%` }} /></div><small>{key.exhausted ? "Bu anahtar geçici olarak devre dışı" : `${formatNumber(key.remaining)} sorgu kaldı`}</small></div>)}</div></>}
           </section>
         </AnimatedContent>
 

@@ -36,6 +36,8 @@ Yayımlanmış portal, sade ve erişilebilir bir React çalışma alanıdır. Re
 
 Portal sonuçlarında iki blok listesi indirilebilir: BGP bilgisinden gelen `IP/prefix` özeti ve yalnız eşik üstü IP’leri `IP/32` biçiminde veren riskli ana makine listesi. İkinci seçenek, geniş servis sağlayıcı subnetlerini engellemeden tek adres bazlı kural oluşturmak içindir.
 
+Portalda `.log` ve `.txt` dosyası seçmenin yanında, IPv4 adreslerini alt alta doğrudan yapıştırarak da tarama başlatabilirsiniz. API kullanım kartı, UTC günü için her anahtarın kullanılan ve kalan sorgu miktarını `API 1`, `API 2` biçiminde gösterir; anahtar metinleri hiçbir zaman portala iletilmez.
+
 Web geliştirme ve yerel önizleme:
 
 ```bash

@@ -46,6 +46,8 @@ Bu katman zorunludur: Worker’daki CORS kontrolü bir tarayıcı kuralıdır, e
 
 Portal, yayımlanmış MSSOFT Worker adresiyle hazır gelir. Gerekirse **Ayarları aç** düğmesinden kurumunuzun farklı HTTPS Worker adresini tanımlayabilirsiniz. Özel adres yalnız aktif tarayıcı oturumunda tutulur; portal API anahtarı istemez veya saklamaz.
 
+Portalın kullanım kartı, Worker’ın kalıcı günlük sayaç bilgisinden yalnız anahtar sırasını ve kullanılan/kalan sorgu adetlerini alır. API anahtarı değerleri bu yanıtın hiçbir alanına eklenmez. Sayaçlar UTC gününe göre yenilenir.
+
 ## Portal arayüzü
 
 Portal React ile derlenir. Tasarım, beyaz alanı yüksek ve düşük hareketli kurumsal bir çalışma alanı olarak kurgulanmıştır. React Bits `AnimatedContent` bileşeni yalnız bölüm giriş geçişlerinde kullanılır; işletim sistemi azaltılmış hareket tercihi algılandığında animasyon çalışmaz. Bileşen lisans notu `web/src/components/REACT_BITS_LICENSE.md` dosyasında yer alır.
