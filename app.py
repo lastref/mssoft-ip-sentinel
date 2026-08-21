@@ -13,7 +13,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 from PIL import Image
 
-from scanner import run_scan
+from scanner import api_usage_for_keys, extract_pasted_ips, run_scan, run_scan_from_ips
 from settings import SettingsStore
 
 
@@ -50,7 +50,7 @@ class SentinelApp(ctk.CTk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._build()
         self._refresh_keys()
-        self._set_status("Hazır", "Bir .txt veya .log dosyası seçerek taramaya başlayın.", "neutral")
+        self._set_status("Hazır", "Bir .txt/.log dosyası seçin veya IPv4 listesini doğrudan yapıştırın.", "neutral")
         self.after(100, self._consume_events)
         self.after(1_000, self._update_elapsed)
         self.after_idle(self.input_button.focus_set)
@@ -80,12 +80,12 @@ class SentinelApp(ctk.CTk):
             self.logo = None
             ctk.CTkLabel(sidebar, text="M", text_color=ACCENT, font=ctk.CTkFont(size=72, weight="bold")).pack(pady=(36, 10))
         ctk.CTkLabel(sidebar, text="MSSOFT", font=ctk.CTkFont(size=25, weight="bold")).pack()
-        ctk.CTkLabel(sidebar, text="IP Sentinel\nThreat Intelligence", text_color="#96a8c8").pack(pady=(2, 34))
+        ctk.CTkLabel(sidebar, text="IP Sentinel\nRisk Değerlendirme", text_color="#96a8c8").pack(pady=(2, 34))
         ctk.CTkLabel(sidebar, text="AbuseIPDB reputation\nRIPEstat BGP subnet\nWindows • macOS • Linux", justify="left", text_color="#7f91af").pack(padx=24, anchor="w")
         ctk.CTkLabel(sidebar, text="v1.0", text_color="#5b6b86").pack(side="bottom", pady=24)
 
-        ctk.CTkLabel(main, text="Threat Intelligence Workspace", font=ctk.CTkFont(size=28, weight="bold")).grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(main, text="IP itibar taraması, çoklu API anahtarı devretme ve denetlenebilir çıktı yönetimi.", text_color="#8fa0bb").grid(row=1, column=0, sticky="w", pady=(2, 18))
+        ctk.CTkLabel(main, text="IP Risk Değerlendirme", font=ctk.CTkFont(size=28, weight="bold")).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(main, text="IP listesi veya log taraması, çoklu API anahtarı kullanımı ve denetlenebilir çıktı yönetimi.", text_color="#8fa0bb").grid(row=1, column=0, sticky="w", pady=(2, 18))
         self.tabs = ctk.CTkTabview(main)
         self.tabs.grid(row=2, column=0, sticky="nsew")
         dashboard = self.tabs.add("Tarama")
@@ -95,19 +95,24 @@ class SentinelApp(ctk.CTk):
 
     def _build_dashboard(self, frame: ctk.CTkFrame) -> None:
         frame.grid_columnconfigure(1, weight=1)
-        frame.grid_rowconfigure(7, weight=1)
+        frame.grid_rowconfigure(8, weight=1)
         ctk.CTkLabel(frame, text="Girdi dosyası", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=18, pady=(20, 7))
         self.input_entry = ctk.CTkEntry(frame, textvariable=self.input_file, state="readonly")
         self.input_entry.grid(row=0, column=1, sticky="ew", padx=12, pady=(20, 7))
         self.input_button = ctk.CTkButton(frame, text="Dosya Seç", width=116, command=self._select_input)
         self.input_button.grid(row=0, column=2, padx=(0, 18), pady=(20, 7))
-        ctk.CTkLabel(frame, text="Çıktı üst klasörü", font=ctk.CTkFont(weight="bold")).grid(row=1, column=0, sticky="w", padx=18, pady=7)
+        ctk.CTkLabel(frame, text="veya IP listesini yapıştır", font=ctk.CTkFont(weight="bold")).grid(row=1, column=0, sticky="nw", padx=18, pady=(7, 7))
+        self.paste_input = ctk.CTkTextbox(frame, height=80, font=ctk.CTkFont(family="Menlo", size=12), wrap="word")
+        self.paste_input.grid(row=1, column=1, sticky="ew", padx=12, pady=7)
+        self.paste_button = ctk.CTkButton(frame, text="Listeyi Hazırla", width=116, command=self._prepare_pasted_ips)
+        self.paste_button.grid(row=1, column=2, padx=(0, 18), pady=7)
+        ctk.CTkLabel(frame, text="Çıktı üst klasörü", font=ctk.CTkFont(weight="bold")).grid(row=2, column=0, sticky="w", padx=18, pady=7)
         self.output_entry = ctk.CTkEntry(frame, textvariable=self.output_folder, state="readonly")
-        self.output_entry.grid(row=1, column=1, sticky="ew", padx=12, pady=7)
+        self.output_entry.grid(row=2, column=1, sticky="ew", padx=12, pady=7)
         self.output_button = ctk.CTkButton(frame, text="Klasör Seç", width=116, command=self._select_output)
-        self.output_button.grid(row=1, column=2, padx=(0, 18), pady=7)
+        self.output_button.grid(row=2, column=2, padx=(0, 18), pady=7)
         controls = ctk.CTkFrame(frame, fg_color="#17243A")
-        controls.grid(row=2, column=0, columnspan=3, sticky="ew", padx=18, pady=(12, 10))
+        controls.grid(row=3, column=0, columnspan=3, sticky="ew", padx=18, pady=(12, 10))
         ctk.CTkLabel(controls, text="Minimum skor").pack(side="left")
         self.score_entry = ctk.CTkEntry(controls, textvariable=self.score, width=65, justify="center")
         self.score_entry.pack(side="left", padx=(8, 24))
@@ -121,11 +126,11 @@ class SentinelApp(ctk.CTk):
         self.cancel.pack(side="right", padx=10)
         self.progress = ctk.CTkProgressBar(frame, progress_color=ACCENT)
         self.progress.set(0)
-        self.progress.grid(row=3, column=0, columnspan=3, sticky="ew", padx=18, pady=(4, 2))
+        self.progress.grid(row=4, column=0, columnspan=3, sticky="ew", padx=18, pady=(4, 2))
         self.progress_text = ctk.CTkLabel(frame, text="0 / 0 IP", anchor="e", text_color=MUTED, font=ctk.CTkFont(size=12))
-        self.progress_text.grid(row=4, column=0, columnspan=3, sticky="ew", padx=18)
+        self.progress_text.grid(row=5, column=0, columnspan=3, sticky="ew", padx=18)
         status_card = ctk.CTkFrame(frame, fg_color="#152338", corner_radius=9)
-        status_card.grid(row=5, column=0, columnspan=3, sticky="ew", padx=18, pady=(9, 8))
+        status_card.grid(row=6, column=0, columnspan=3, sticky="ew", padx=18, pady=(9, 8))
         self.status_indicator = ctk.CTkLabel(status_card, text="●", text_color=MUTED, width=24, font=ctk.CTkFont(size=18))
         self.status_indicator.grid(row=0, column=0, rowspan=2, padx=(12, 3), pady=9)
         self.status_title = ctk.CTkLabel(status_card, text="", anchor="w", font=ctk.CTkFont(weight="bold"))
@@ -136,12 +141,12 @@ class SentinelApp(ctk.CTk):
         self.elapsed = ctk.CTkLabel(status_card, text="", text_color="#8FA0BB", font=ctk.CTkFont(size=12))
         self.elapsed.grid(row=0, column=2, rowspan=2, padx=12)
         console_header = ctk.CTkFrame(frame, fg_color="transparent")
-        console_header.grid(row=6, column=0, columnspan=3, sticky="new", padx=18, pady=(0, 4))
+        console_header.grid(row=7, column=0, columnspan=3, sticky="new", padx=18, pady=(0, 4))
         ctk.CTkLabel(console_header, text="İşlem günlüğü", font=ctk.CTkFont(weight="bold")).pack(side="left")
         self.open_results = ctk.CTkButton(console_header, text="Sonuç Klasörünü Aç", width=150, state="disabled", command=self._open_results)
         self.open_results.pack(side="right")
         self.console = ctk.CTkTextbox(frame, height=225, font=ctk.CTkFont(family="Menlo", size=12), wrap="word")
-        self.console.grid(row=7, column=0, columnspan=3, sticky="nsew", padx=18, pady=(0, 20))
+        self.console.grid(row=8, column=0, columnspan=3, sticky="nsew", padx=18, pady=(0, 20))
         self.console.configure(state="disabled")
 
     def _build_settings(self, frame: ctk.CTkFrame) -> None:
@@ -170,9 +175,25 @@ class SentinelApp(ctk.CTk):
             return
         selected = filedialog.askopenfilename(title="Log veya IP listesi seçin", filetypes=[("Desteklenen dosyalar", "*.log *.txt"), ("Tüm dosyalar", "*.*")])
         if selected:
+            self.paste_input.delete("1.0", "end")
             self.input_file.set(selected)
             self._write(f"Girdi seçildi: {Path(selected).name}")
             self._set_status("Girdi hazır", f"{Path(selected).name} seçildi. IP adresleri taramadan önce tekilleştirilecektir.", "neutral")
+
+    def _prepare_pasted_ips(self) -> None:
+        if self._is_scanning:
+            return
+        try:
+            ips, _ = extract_pasted_ips(self.paste_input.get("1.0", "end-1c"))
+        except ValueError as error:
+            messagebox.showerror("IP listesi", self._safe_error(error), parent=self)
+            return
+        if not ips:
+            messagebox.showerror("IP listesi", "Yapıştırılan metinde taranabilir genel IPv4 adresi bulunamadı.", parent=self)
+            return
+        self.input_file.set("")
+        self._set_status("IP listesi hazır", f"{len(ips):,} benzersiz genel IPv4 bulundu. Tarama için Taramayı Başlat düğmesini kullanın.", "neutral")
+        self._write(f"Yapıştırılan IP listesi hazırlandı: {len(ips):,} benzersiz genel IPv4")
 
     def _select_output(self) -> None:
         if self._is_scanning:
@@ -187,17 +208,29 @@ class SentinelApp(ctk.CTk):
             child.destroy()
         self._key_action_buttons = []
         entries = self.store.list_keys()
-        available = len(self.store.resolved_keys())
+        resolved_keys = self.store.resolved_keys()
+        available = len(resolved_keys)
+        try:
+            usage_by_label = {str(item["label"]): item for item in api_usage_for_keys(resolved_keys)}
+            usage_note = "  |  Sayaç: UTC günü"
+        except Exception as error:
+            usage_by_label = {}
+            usage_note = "  |  Sayaç okunamadı: " + self._safe_error(error)
         _, secure, backend_message = self.store.keyring_status()
         warning = "" if secure else "  |  Uyarı: " + backend_message
-        self.keys_summary.configure(text=f"Yapılandırılan: {len(entries)}  |  Kullanıma hazır: {available}{warning}")
+        self.keys_summary.configure(text=f"Yapılandırılan: {len(entries)}  |  Kullanıma hazır: {available}{usage_note}{warning}")
         if not entries:
             ctk.CTkLabel(self.key_list, text="Henüz API anahtarı eklenmedi. Taramaya başlamadan önce en az bir anahtar ekleyin.", text_color=MUTED).pack(pady=20)
-        for entry in entries:
+        for position, entry in enumerate(entries, 1):
             row = ctk.CTkFrame(self.key_list, fg_color="#192943")
             row.pack(fill="x", pady=5, padx=4)
-            ctk.CTkLabel(row, text=entry["label"], font=ctk.CTkFont(weight="bold")).pack(side="left", padx=12, pady=10)
-            ctk.CTkLabel(row, text="Güvenli kasada saklanır  ••••••••", text_color=MUTED, font=ctk.CTkFont(size=12)).pack(side="left")
+            ctk.CTkLabel(row, text=f"API {position} · {entry['label']}", font=ctk.CTkFont(weight="bold")).pack(side="left", padx=12, pady=10)
+            usage = usage_by_label.get(entry["label"])
+            if usage:
+                usage_text = f"Günlük kullanım: {usage['used']}/{usage['limit']}  |  Kalan: {usage['remaining']}"
+            else:
+                usage_text = "Kullanıma hazır değil veya sayaç okunamadı"
+            ctk.CTkLabel(row, text=usage_text, text_color=MUTED, font=ctk.CTkFont(size=12)).pack(side="left")
             remove_button = ctk.CTkButton(row, text="Kaldır", width=80, fg_color="#78333D", hover_color="#9A414D", command=lambda item=entry: self._delete_key(item))
             remove_button.pack(side="right", padx=8, pady=6)
             self._key_action_buttons.append(remove_button)
@@ -233,15 +266,32 @@ class SentinelApp(ctk.CTk):
             self._refresh_keys()
             self._set_status("API anahtarı kaldırıldı", f"{entry['label']} artık kullanılmayacak.", "warning")
 
-    def _validated_scan_inputs(self) -> tuple[Path, Path, int, int] | None:
-        input_path, output_path = Path(self.input_file.get()), Path(self.output_folder.get())
-        if not input_path.is_file():
-            messagebox.showerror("Tarama", "Lütfen geçerli bir .txt veya .log girdi dosyası seçin.", parent=self)
-            self.input_button.focus_set()
-            return None
-        if input_path.suffix.lower() not in {".txt", ".log"}:
-            if not messagebox.askyesno("Dosya türü", "Seçilen dosya .txt veya .log değil. Yine de metin olarak taransın mı?", parent=self):
+    def _validated_scan_inputs(self) -> tuple[Path | None, list[str] | None, str, Path, int, int] | None:
+        output_path = Path(self.output_folder.get())
+        pasted_text = self.paste_input.get("1.0", "end-1c")
+        input_path: Path | None = None
+        pasted_ips: list[str] | None = None
+        source_name = ""
+        if pasted_text.strip():
+            try:
+                pasted_ips, source_name = extract_pasted_ips(pasted_text)
+            except ValueError as error:
+                messagebox.showerror("Tarama", self._safe_error(error), parent=self)
                 return None
+            if not pasted_ips:
+                messagebox.showerror("Tarama", "Yapıştırılan metinde taranabilir genel IPv4 adresi bulunamadı.", parent=self)
+                self.paste_input.focus_set()
+                return None
+        else:
+            input_path = Path(self.input_file.get())
+            if not input_path.is_file():
+                messagebox.showerror("Tarama", "Lütfen geçerli bir .txt/.log dosyası seçin veya IP listesini yapıştırın.", parent=self)
+                self.input_button.focus_set()
+                return None
+            if input_path.suffix.lower() not in {".txt", ".log"}:
+                if not messagebox.askyesno("Dosya türü", "Seçilen dosya .txt veya .log değil. Yine de metin olarak taransın mı?", parent=self):
+                    return None
+            source_name = input_path.name
         if not self._is_writable_output_folder(output_path):
             messagebox.showerror("Tarama", "Yazılabilir ve erişilebilir bir çıktı üst klasörü seçin.", parent=self)
             self.output_button.focus_set()
@@ -259,7 +309,7 @@ class SentinelApp(ctk.CTk):
             messagebox.showerror("Tarama", "Rapor yaşı 1 ile 365 gün arasında olmalıdır.", parent=self)
             self.days_entry.focus_set()
             return None
-        return input_path, output_path, score, days
+        return input_path, pasted_ips, source_name, output_path, score, days
 
     @staticmethod
     def _is_writable_output_folder(path: Path) -> bool:
@@ -280,7 +330,7 @@ class SentinelApp(ctk.CTk):
         selected = self._validated_scan_inputs()
         if not selected:
             return
-        input_path, output_path, score, days = selected
+        input_path, pasted_ips, source_name, output_path, score, days = selected
         keys = self.store.resolved_keys()
         if not keys:
             self.tabs.set("Ayarlar")
@@ -294,14 +344,19 @@ class SentinelApp(ctk.CTk):
         self._scan_started_at = time.monotonic()
         self._set_scan_controls(scanning=True)
         self._set_settings_controls(scanning=True)
-        self._set_status("Tarama başlatıldı", f"{input_path.name} işleniyor. İptal isterseniz kısmi raporlar güvenle kaydedilir.", "active")
-        self._write(f"Tarama başlatıldı: {input_path.name} | eşik: {score} | rapor yaşı: {days} gün")
+        self._set_status("Tarama başlatıldı", f"{source_name} işleniyor. İptal isterseniz kısmi raporlar güvenle kaydedilir.", "active")
+        self._write(f"Tarama başlatıldı: {source_name} | eşik: {score} | rapor yaşı: {days} gün")
         self._write("API anahtarı ayarları bu tarama boyunca kilitlidir; değişiklikler sonraki taramada uygulanır.")
-        threading.Thread(target=self._scan_thread, args=(input_path, output_path, keys, score, days), daemon=True, name="ip-sentinel-scan").start()
+        threading.Thread(target=self._scan_thread, args=(input_path, pasted_ips, output_path, keys, score, days), daemon=True, name="ip-sentinel-scan").start()
 
-    def _scan_thread(self, input_path: Path, output_path: Path, keys: list[tuple[str, str]], score: int, days: int) -> None:
+    def _scan_thread(self, input_path: Path | None, pasted_ips: list[str] | None, output_path: Path, keys: list[tuple[str, str]], score: int, days: int) -> None:
         try:
-            result = run_scan(input_path, output_path, keys, score, days, self.cancel_event, self._enqueue_log, self._enqueue_progress)
+            if pasted_ips is not None:
+                result = run_scan_from_ips(pasted_ips, output_path, keys, score, days, self.cancel_event, self._enqueue_log, self._enqueue_progress)
+            else:
+                if input_path is None:
+                    raise RuntimeError("Tarama girdisi bulunamadı.")
+                result = run_scan(input_path, output_path, keys, score, days, self.cancel_event, self._enqueue_log, self._enqueue_progress)
             self._enqueue_critical("done", (str(result), self.cancel_event.is_set()))
         except Exception as error:
             self._enqueue_critical("error", self._safe_error(error))
@@ -359,6 +414,7 @@ class SentinelApp(ctk.CTk):
         self._is_scanning = False
         self._set_scan_controls(scanning=False)
         self._set_settings_controls(scanning=False)
+        self._refresh_keys()
         self._scan_started_at = None
         self.elapsed.configure(text="")
         if error:
@@ -381,7 +437,7 @@ class SentinelApp(ctk.CTk):
         self.start.configure(state="disabled" if scanning else "normal")
         self.cancel.configure(state="normal" if scanning else "disabled", text="İptal İsteği")
         state = "disabled" if scanning else "normal"
-        for widget in (self.input_button, self.output_button, self.score_entry, self.days_entry):
+        for widget in (self.input_button, self.paste_input, self.paste_button, self.output_button, self.score_entry, self.days_entry):
             widget.configure(state=state)
 
     def _set_settings_controls(self, scanning: bool) -> None:

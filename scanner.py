@@ -21,6 +21,7 @@ import requests
 ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
 RIPESTAT_URL = "https://stat.ripe.net/data/network-info/data.json"
 MAX_INPUT_SIZE_BYTES = 100 * 1024 * 1024
+MAX_PASTED_INPUT_BYTES = 1 * 1024 * 1024
 READ_CHUNK_SIZE = 1024 * 1024
 MATCH_OVERLAP_SIZE = 64
 CONNECT_TIMEOUT_SECONDS = 5
@@ -156,6 +157,37 @@ class UsageLedger:
             except OSError:
                 pass
 
+    def usage_for(self, keys: list[tuple[str, str]], limit: int = REQUESTS_PER_KEY_LIMIT) -> list[dict[str, int | str]]:
+        """Return daily per-label usage without exposing API key material."""
+        lock_descriptor = self._acquire_lock()
+        try:
+            payload = self._read()
+            days = payload["days"]
+            assert isinstance(days, dict)
+            today = datetime.now(timezone.utc).date().isoformat()
+            raw_counts = days.get(today, {})
+            if not isinstance(raw_counts, dict):
+                raise RuntimeError("API kota sayacı doğrulanamadı; güvenli olarak durduruldu.")
+            usage: list[dict[str, int | str]] = []
+            for index, (label, secret) in enumerate(keys, 1):
+                count = raw_counts.get(self._fingerprint(secret), 0)
+                if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+                    raise RuntimeError("API kota sayacı doğrulanamadı; güvenli olarak durduruldu.")
+                used = min(count, limit)
+                usage.append({"label": label, "position": index, "used": used, "limit": limit, "remaining": max(0, limit - used)})
+            return usage
+        finally:
+            os.close(lock_descriptor)
+            try:
+                USAGE_LOCK_PATH.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def api_usage_for_keys(keys: list[tuple[str, str]]) -> list[dict[str, int | str]]:
+    """Expose an application-safe usage snapshot for the desktop interface."""
+    return UsageLedger().usage_for(keys)
+
 
 class ApiKeyPool:
     def __init__(self, keys: list[tuple[str, str]], notify: Callable[[str], None]) -> None:
@@ -244,6 +276,14 @@ def extract_ips(path: Path) -> tuple[list[str], str]:
     if _contains_forti_srcip_field(path):
         return _unique_public_ipv4(path, FORTI_SRCIP_PATTERN), "FortiAnalyzer srcip"
     return _unique_public_ipv4(path, IP_PATTERN), "IPv4 listesi"
+
+
+def extract_pasted_ips(text: str) -> tuple[list[str], str]:
+    """Extract de-duplicated public IPv4 addresses pasted into the desktop UI."""
+    if len(text.encode("utf-8")) > MAX_PASTED_INPUT_BYTES:
+        raise ValueError("Yapıştırılan IP listesi en fazla 1 MB olabilir.")
+    unique = {match.group(0) for match in IP_PATTERN.finditer(text) if _is_acceptable_public_ipv4(match.group(0))}
+    return sorted(unique, key=lambda value: int(ipaddress.IPv4Address(value))), "Yapıştırılan IPv4 listesi"
 
 
 def _request(session: requests.Session, url: str, **kwargs: object) -> requests.Response:
@@ -391,16 +431,13 @@ class _ReportWriter:
         self._summary_path.replace(self.run_dir / "ozet_ipv4.txt")
 
 
-def run_scan(input_path: Path, output_parent: Path, keys: list[tuple[str, str]], minimum_score: int, max_age_days: int, cancel_event: threading.Event, notify: Callable[[str], None], progress: Callable[[int, int], None]) -> Path:
-    if not input_path.is_file():
-        raise ValueError("Girdi dosyası bulunamadı.")
+def _run_scan(ips: list[str], mode: str, input_reference: str, output_parent: Path, keys: list[tuple[str, str]], minimum_score: int, max_age_days: int, cancel_event: threading.Event, notify: Callable[[str], None], progress: Callable[[int, int], None]) -> Path:
     if not keys:
         raise ValueError("Ayarlar bölümüne en az bir AbuseIPDB API anahtarı ekleyin.")
     if not 0 <= minimum_score <= 100 or max_age_days < 1:
         raise ValueError("Skor 0-100 arasında, rapor yaşı en az 1 gün olmalı.")
-    ips, mode = extract_ips(input_path)
     if not ips:
-        raise ValueError("Girdi dosyasında taranabilir genel IPv4 adresi bulunamadı.")
+        raise ValueError("Girdide taranabilir genel IPv4 adresi bulunamadı.")
 
     run_dir = _run_dir(output_parent)
     logger = logging.getLogger(f"mssoft-ip-sentinel-{run_dir.name}")
@@ -489,7 +526,19 @@ def run_scan(input_path: Path, output_parent: Path, keys: list[tuple[str, str]],
         session.close()
         logger.removeHandler(handler)
         handler.close()
-    metadata = {"product": "MSSOFT IP Sentinel", "input": str(input_path), "created_at": datetime.now(timezone.utc).isoformat(), "extraction_mode": mode, "unique_ipv4": len(ips), "completed_requests": completed, "api_request_attempts": sum(pool.attempts), "api_request_attempts_by_key": {keys[i][0]: pool.attempts[i] for i in range(len(keys))}, "risk_findings": reports.count, "failed_requests": failures, "cancelled": cancel_event.is_set(), "minimum_score": minimum_score, "max_age_days": max_age_days}
+    metadata = {"product": "MSSOFT IP Sentinel", "input": input_reference, "created_at": datetime.now(timezone.utc).isoformat(), "extraction_mode": mode, "unique_ipv4": len(ips), "completed_requests": completed, "api_request_attempts": sum(pool.attempts), "api_request_attempts_by_key": {keys[i][0]: pool.attempts[i] for i in range(len(keys))}, "risk_findings": reports.count, "failed_requests": failures, "cancelled": cancel_event.is_set(), "minimum_score": minimum_score, "max_age_days": max_age_days}
     (run_dir / "run.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     notify(f"Raporlar hazır: {run_dir}")
     return run_dir
+
+
+def run_scan(input_path: Path, output_parent: Path, keys: list[tuple[str, str]], minimum_score: int, max_age_days: int, cancel_event: threading.Event, notify: Callable[[str], None], progress: Callable[[int, int], None]) -> Path:
+    if not input_path.is_file():
+        raise ValueError("Girdi dosyası bulunamadı.")
+    ips, mode = extract_ips(input_path)
+    return _run_scan(ips, mode, str(input_path), output_parent, keys, minimum_score, max_age_days, cancel_event, notify, progress)
+
+
+def run_scan_from_ips(ips: list[str], output_parent: Path, keys: list[tuple[str, str]], minimum_score: int, max_age_days: int, cancel_event: threading.Event, notify: Callable[[str], None], progress: Callable[[int, int], None]) -> Path:
+    unique = sorted({value for value in ips if _is_acceptable_public_ipv4(value)}, key=lambda value: int(ipaddress.IPv4Address(value)))
+    return _run_scan(unique, "Yapıştırılan IPv4 listesi", "Yapıştırılan IP listesi", output_parent, keys, minimum_score, max_age_days, cancel_event, notify, progress)

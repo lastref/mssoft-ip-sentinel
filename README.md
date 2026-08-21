@@ -7,9 +7,10 @@ Masaüstü uygulamasına ek olarak ekipler için bir web portalı da içerir. Po
 ## Özellikler
 
 - Windows, macOS ve Linux için tek Python kaynak tabanı.
-- `.txt` ve `.log` girdileri; FortiAnalyzer `srcip` alanı bulunduğunda yalnızca bu alan taranır.
+- Masaüstünde ve portalda `.txt`/`.log` girdileri ile alt alta yapıştırılan IPv4 listeleri; FortiAnalyzer `srcip` alanı bulunduğunda yalnızca bu alan taranır.
 - Genel internete yönlendirilemeyen, multicast, loopback, link-local, reserved ve unspecified IPv4 adreslerini hariç tutar.
 - Çoklu API anahtarı, işletim sistemi anahtar kasası ve günlük anahtar başına 1.000 **API isteği** kotası.
+- Masaüstü **Ayarlar** sekmesinde ve web portalında her anahtar için günlük kullanılan/kalan sorgu adedi gösterilir; API anahtarı metinleri hiçbir ekrana, rapora veya günlüğe yazılmaz.
 - Her HTTP denemesi (yeniden deneme ve hata dahil) kalıcı, atomik bir sayaçla rezerve edilir; kota/yetki hatasında aynı IP sıradaki anahtarla sürdürülür.
 - Arka plan taraması, iptal düğmesi, sınırlı arayüz günlüğü ve denetlenebilir `audit.log`.
 - RIPEstat BGP cevabı yoksa riskli IP kaybolmaz: özet dosyasına güvenli tek-adres subneti `IP/32` yazılır ve detay raporunda `host_32_fallback` olarak etiketlenir. Araç hiçbir zaman tahmini `/24` üretmez.
@@ -61,7 +62,7 @@ python app.py
 
 Windows'ta `run_windows.bat`, macOS'ta `run_macos.command` dosyası kullanılabilir. Başlatıcılar eksik paket varsa ilk açılışta kurulum yapar; her açılışta ağdan paket indirmez. Linux'ta aynı şekilde terminalden yukarıdaki iki komut çalıştırılır.
 
-Uygulama açıldığında **Ayarlar** sekmesinden her AbuseIPDB anahtarına ayrı bir etiket verin. Tarama devam ederken ayarlar kilitlenir; değişiklikler yalnızca sonraki taramaya uygulanır.
+Uygulama açıldığında **Ayarlar** sekmesinden her AbuseIPDB anahtarına ayrı bir etiket verin. Aynı sekmede `API 1`, `API 2` biçiminde günlük kullanılan/kalan istek adetleri görülür. **Tarama** sekmesinde dosya seçebilir veya IPv4 adreslerini alt alta doğrudan yapıştırabilirsiniz. Tarama devam ederken ayarlar kilitlenir; değişiklikler yalnızca sonraki taramaya uygulanır.
 
 ## Anahtar kasası ve gizlilik
 
