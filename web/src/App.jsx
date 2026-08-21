@@ -45,6 +45,13 @@ function download(filename, content, type) {
   URL.revokeObjectURL(address);
 }
 
+function riskHostsAs32(findings) {
+  return [...new Set(findings.map((item) => item.ip).filter(Boolean))]
+    .sort((first, second) => numericIp(first) - numericIp(second))
+    .map((ip) => `${ip}/32`)
+    .join("\n");
+}
+
 function Icon({ name, size = 18 }) {
   const paths = {
     document: <><path d="M6 2.75h7l3 3V21.25H6z" /><path d="M13 2.75v3h3M8.5 10h5M8.5 14h5M8.5 18h3.5" /></>,
@@ -256,6 +263,7 @@ function App() {
                 <div><p className="section-label">03 / SONUÇ</p><h2 id="results-title">Risk değerlendirme kayıtları</h2></div>
                 <div className="download-row">
                   <button className="button button-secondary compact" type="button" onClick={() => download("mssoft-ip-sentinel-ip-prefix.txt", findings.map((item) => item.ip_with_prefix).join("\n") + (findings.length ? "\n" : ""), "text/plain;charset=utf-8")}><Icon name="download" />IP/prefix özeti</button>
+                  <button className="button button-secondary compact" type="button" onClick={() => { const hosts = riskHostsAs32(findings); download("mssoft-ip-sentinel-riskli-ip-32.txt", hosts + (hosts ? "\n" : ""), "text/plain;charset=utf-8"); }}><Icon name="download" />Riskli IP /32 listesi</button>
                   <button className="button button-secondary compact" type="button" onClick={() => download("mssoft-ip-sentinel-detay.json", JSON.stringify({ generatedAt: new Date().toISOString(), scanned, findings }, null, 2), "application/json")}><Icon name="download" />Detay JSON</button>
                 </div>
               </div>

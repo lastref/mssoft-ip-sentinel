@@ -34,6 +34,8 @@ AbuseIPDB API v2, tarayıcıdan doğrudan çağrı için CORS desteği vermez ve
 
 Yayımlanmış portal, sade ve erişilebilir bir React çalışma alanıdır. React Bits `AnimatedContent` bileşeni, yalnız düşük hareketli bölüm geçişlerinde kullanılır; `prefers-reduced-motion` tercihi etkinse geçişler kapatılır. Geçit çoklu anahtar havuzunu kullanır, anahtar başına günlük 1.000 API isteği sınırını kalıcı olarak izler ve sınır ya da yetkilendirme hatasında sıradaki anahtara geçer.
 
+Portal sonuçlarında iki blok listesi indirilebilir: BGP bilgisinden gelen `IP/prefix` özeti ve yalnız eşik üstü IP’leri `IP/32` biçiminde veren riskli ana makine listesi. İkinci seçenek, geniş servis sağlayıcı subnetlerini engellemeden tek adres bazlı kural oluşturmak içindir.
+
 Web geliştirme ve yerel önizleme:
 
 ```bash
